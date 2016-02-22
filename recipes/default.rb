@@ -21,7 +21,7 @@ chocolatey "git.install" do
   options ({'params' => "'/force'"})
 end
 
-%w{chefdk poshgit atom}.each do |pack|
+%w{poshgit atom}.each do |pack|
   chocolatey pack
 end
 

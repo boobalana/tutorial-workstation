@@ -16,6 +16,7 @@
     "import_bookmarks" : false,
     "import_bookmarks_from_file" : "<%= @params[:import_bookmarks_from_file] %>",
     "make_chrome_default" : true,
+    "make_chrome_default_for_user" : true,
     "suppress_first_run_bubble" : true,
     "do_not_register_for_update_launch" : true,
     "suppress_first_run_default_browser_prompt" : true,
@@ -24,8 +25,6 @@
     "require_eula" : false
   },
   "first_run_tabs" : [
-    "<%= @params[:homepage] %>",
-    "https://10.0.0.12/e/delivery-demo/",
-    "https://10.0.0.11/"
+    "<%= @params[:homepage] %>"
   ]
 }

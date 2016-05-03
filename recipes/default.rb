@@ -47,3 +47,18 @@ registry_key 'Set Chrome as default HTTPS protocol association' do
     {:name => 'ProgId', :type => :string, :data => 'ChromeHTML'},
   ]
 end
+
+powershell_script 'Import Delivery SSL certificate' do
+  code <<'EOH'
+$webRequest = [Net.WebRequest]::Create("https://10.0.0.12")
+try { $webRequest.GetResponse() } catch {}
+$cert = $webRequest.ServicePoint.Certificate
+$bytes = $cert.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+set-content -value $bytes -encoding byte -path "$pwd\10.0.0.12.cer"
+$certpath = "$pwd\10.0.0.12.cer"
+$certstore = "cert:\\LocalMachine\\Root"
+Import-Certificate -FilePath $certpath -CertStoreLocation $certstore
+$certstore = "cert:\\LocalMachine\\CA"
+Import-Certificate -FilePath $certpath -CertStoreLocation $certstore
+EOH
+end

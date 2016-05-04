@@ -60,6 +60,8 @@ ruby_block 'scp Chef server validation key' do
     end
   end
   not_if { File.exist?(File.join(demo_dir, '.chef', 'delivery.pem')) }
+  retries 60
+  retry_delay 60
 end
 
 file File.join(demo_dir, '.chef', 'knife.rb') do
@@ -76,11 +78,15 @@ execute 'Fetch Chef server SSL certificate' do
   command 'knife ssl fetch'
   cwd File.join(demo_dir, '.chef')
   not_if { File.exist?(File.join(demo_dir, '.chef', 'trusted_certs', '10_0_0_11.crt')) }
+  retries 60
+  retry_delay 60
 end
 
 servers = [{:name => 'Chef server', ip: '10.0.0.11'}, {:name => 'Delivery', ip: '10.0.0.12'}]
 servers.each do |server|
   powershell_script "Import #{server[:name]} SSL certificate" do
+    retries 60
+    retry_delay 60
     code <<EOH
       $webRequest = [Net.WebRequest]::Create(\"https://#{server[:ip]}\")
       try { $webRequest.GetResponse() } catch {}

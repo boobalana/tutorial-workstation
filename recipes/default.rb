@@ -48,17 +48,50 @@ registry_key 'Set Chrome as default HTTPS protocol association' do
   ]
 end
 
-powershell_script 'Import Delivery SSL certificate' do
-  code <<'EOH'
-$webRequest = [Net.WebRequest]::Create("https://10.0.0.12")
-try { $webRequest.GetResponse() } catch {}
-$cert = $webRequest.ServicePoint.Certificate
-$bytes = $cert.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-set-content -value $bytes -encoding byte -path "$pwd\10.0.0.12.cer"
-$certpath = "$pwd\10.0.0.12.cer"
-$certstore = "cert:\\LocalMachine\\Root"
-Import-Certificate -FilePath $certpath -CertStoreLocation $certstore
-$certstore = "cert:\\LocalMachine\\CA"
-Import-Certificate -FilePath $certpath -CertStoreLocation $certstore
+demo_dir = 'C:\Users\Administrator\delivery-demo'
+directory demo_dir
+directory File.join(demo_dir, '.chef')
+ruby_block 'scp Chef server validation key' do
+  block do
+    require 'net/ssh'
+    require 'net/scp'
+    Net::SSH.start('10.0.0.10', 'chef', :password => 'chef', :paranoid => false) do |session|
+      session.scp.download! '/home/chef/delivery.pem', File.join(demo_dir, '.chef')
+    end
+  end
+  not_if { File.exist?(File.join(demo_dir, '.chef', 'delivery.pem')) }
+end
+
+file File.join(demo_dir, '.chef', 'knife.rb') do
+  content <<EOH
+node_name            'delivery'
+chef_server_url      'https://10.0.0.11/organizations/delivery-demo'
+client_key           'C:/Users/Administrator/delivery-demo/.chef/delivery.pem'
+cookbook_path        'C:/Users/Administrator/delivery-demo'
+trusted_certs_dir    'C:/Users/Administrator/delivery-demo/.chef/trusted_certs'
 EOH
+end
+
+execute 'Fetch Chef server SSL certificate' do
+  command 'knife ssl fetch'
+  cwd File.join(demo_dir, '.chef')
+  not_if { File.exist?(File.join(demo_dir, '.chef', 'trusted_certs', '10_0_0_11.crt')) }
+end
+
+servers = [{:name => 'Chef server', ip: '10.0.0.11'}, {:name => 'Delivery', ip: '10.0.0.12'}]
+servers.each do |server|
+  powershell_script "Import #{server[:name]} SSL certificate" do
+    code <<EOH
+      $webRequest = [Net.WebRequest]::Create(\"https://#{server[:ip]}\")
+      try { $webRequest.GetResponse() } catch {}
+      $cert = $webRequest.ServicePoint.Certificate
+      $bytes = $cert.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+      Set-Content -value $bytes -encoding byte -path \"$pwd\\#{server[:ip]}.cer\"
+      $certpath = \"$pwd\\#{server[:ip]}.cer\"
+      $certstore = \"cert:\\\\LocalMachine\\\\Root\"
+      Import-Certificate -FilePath $certpath -CertStoreLocation $certstore
+      $certstore = \"cert:\\\\LocalMachine\\\\CA\"
+      Import-Certificate -FilePath $certpath -CertStoreLocation $certstore
+EOH
+  end
 end
